@@ -8,13 +8,14 @@
 </p>
 
 <img
-  src="https://github.com/ivoronin/TomatoBar/raw/main/screenshot.png?raw=true"
+  src="https://github.com/jcontradiction/TomatoBar/raw/main/screenshot.png?raw=true"
   alt="Screenshot"
   width="50%"
   align="right"
 />
 
 ## Overview
+
 Have you ever heard of Pomodoro? It’s a great technique to help you keep track of time and stay on task during your studies or work. Read more about it on <a href="https://en.wikipedia.org/wiki/Pomodoro_Technique">Wikipedia</a>.
 
 TomatoBar is world's neatest Pomodoro timer for the macOS menu bar. All the essential features are here - configurable
@@ -23,9 +24,13 @@ work and rest intervals, optional sounds, discreet actionable notifications, glo
 TomatoBar is fully sandboxed with no entitlements (except for the Apple Events entitlement, used to run the Do Not Disturb toggle shortcut).
 
 ## Fork notes
+
 This fork makes a couple additions/modifications:
 
-- Increases the maximum timer duration to 2 hours/120 minutes
+- Shows a confirmation message exclusively when the Stop button is clicked
+- Increases the maximum work interval set to 999
+- Adjusts the size of the Pause, Add, and Skip buttons for improved usability
+- Implements an elapsed timer feature
 - Adds an option to toggle Do Not Disturb automatically using a shortcut. The first time you start the timer you'll be prompted to add the shortcut, it will work fine afterwards (also PRed to https://github.com/ivoronin/TomatoBar/pull/82)
 - Adds sound customization: to use, open the sound folder from settings and place audio files named "windup", "ding" or "ticking" in mp3 or m4a/mp4 (aac/alac) format
 - Adds a preset selector with 4 presets you can quickly switch between
@@ -43,14 +48,20 @@ This fork makes a couple additions/modifications:
 - Increases the minimum macOS version requirement to Monterey
 
 ## Integration with other tools
+
 ### Event log
+
 TomatoBar logs state transitions in JSON format to `~/Library/Containers/com.github.ivoronin.TomatoBar/Data/Library/Caches/TomatoBar.log`. Use this data to analyze your productivity and enrich other data sources.
+
 ### Controlling the timer
+
 TomatoBar can be controlled using `tomatobar://` URLs. To start or stop the timer from the command line, use `open tomatobar://startStop`. To pause or resume use `open tomatobar://pauseResume`. To skip use `open tomatobar://skip`. To add a minute use `open tomatobar://addMinute`
 
 ## Older versions
+
 Touch bar integration and older macOS versions (earlier than Big Sur) are supported by TomatoBar versions prior to 3.0
 
 ## Licenses
- - Timer sounds are licensed from buddhabeats
- - "macos-focus-mode.shortcut" is taken from the <a href="https://github.com/arodik/macos-focus-mode">macos-focus-mode</a> project under the MIT license.
+
+- Timer sounds are licensed from buddhabeats
+- "macos-focus-mode.shortcut" is taken from the <a href="https://github.com/arodik/macos-focus-mode">macos-focus-mode</a> project under the MIT license.

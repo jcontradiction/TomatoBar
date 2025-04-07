@@ -74,7 +74,12 @@ class TBTimer: ObservableObject {
     @Published var timeLeftString: String = ""
     @Published var timer: DispatchSourceTimer?
     @Published var stateMachine = TBStateMachine(state: .idle)
-
+    @Published var elapsedTime: TimeInterval = 0 // Tracks the elapsed time
+    @Published var elapsedTimeString: String = ""
+    private var elapsedStartTime: Date?          // When the elapsed timer starts
+    private var elapsedTimer: Timer?            // Timer to update the elapsed time
+    private var startTime: Date?
+    
     init() {
         /*
          * State diagram
@@ -178,11 +183,6 @@ class TBTimer: ObservableObject {
         }
     }
 
-    func startStop() {
-        paused = false
-        stateMachine <-! .startStop
-    }
-
     func startOnLaunch() {
         if !startTimerOnLaunch {
             return
@@ -190,7 +190,33 @@ class TBTimer: ObservableObject {
 
         startStop()
     }
-
+    
+    func startStop() {
+        if timer == nil { // Starting the main timer
+            paused = false
+            
+            startElapsedTimer() // Start the elapsed timer
+        } else { // Stopping the main timer
+            stopElapsedTimer() // Stop the elapsed timer
+        }
+        stateMachine <-! .startStop
+    }
+    
+    func stopElapsedTimer() {
+        elapsedTimer?.invalidate()
+        elapsedTimer = nil
+        elapsedStartTime = nil
+        elapsedTime = 0
+    }
+    
+    func updateElapsedTimeString() {
+        let formatter = DateComponentsFormatter()
+        formatter.unitsStyle = .positional
+        formatter.allowedUnits = [.hour, .minute, .second]
+        formatter.zeroFormattingBehavior = [.pad]
+        elapsedTimeString = formatter.string(from: elapsedTime) ?? "0:00:00"
+    }
+        
     func skip() {
         if timer == nil {
             return
@@ -205,7 +231,7 @@ class TBTimer: ObservableObject {
             return
         }
 
-        paused = !paused
+        paused.toggle() // Toggle the paused state
 
         if toggleDoNotDisturb, stateMachine.state == .work {
             DispatchQueue.main.async(group: notificationGroup) { [self] in
@@ -214,15 +240,22 @@ class TBTimer: ObservableObject {
         }
 
         if paused {
+            // Pause logic
             if stateMachine.state == .work {
                 player.stopTicking()
             }
             pausedPrevImage = TBStatusItem.shared.statusBarItem?.button?.image
             TBStatusItem.shared.setIcon(name: .pause)
+
             pausedTimeRemaining = finishTime.timeIntervalSince(Date())
             finishTime = Date.distantFuture
-        }
-        else {
+
+            // Stop the elapsed timer and clear the start time
+            elapsedTimer?.invalidate()
+            elapsedTimer = nil
+            elapsedStartTime = nil // Ensure no further updates
+        } else {
+            // Resume logic
             if stateMachine.state == .work {
                 player.startTicking(isPaused: true)
             }
@@ -230,10 +263,33 @@ class TBTimer: ObservableObject {
                 TBStatusItem.shared.statusBarItem?.button?.image = pausedPrevImage
             }
             finishTime = Date().addingTimeInterval(pausedTimeRemaining)
+
+            // Resume tracking elapsed time
+            elapsedStartTime = Date() // Restart from the current time
+            startElapsedTimer() // Restart the elapsed timer
         }
 
         updateTimeLeft()
     }
+
+
+    
+    func startElapsedTimer() {
+        
+        elapsedTimer?.invalidate()
+        elapsedTimer = nil
+
+        if elapsedStartTime == nil {
+            elapsedStartTime = Date()
+        }
+
+        elapsedTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self = self, let _ = self.elapsedStartTime else { return }
+            self.elapsedTime += 1 // Increment the elapsed time by one second
+            self.updateElapsedTimeString()
+        }
+    }
+
 
     func updateTimeLeft() {
         let timeLeft = paused ? pausedTimeRemaining : finishTime.timeIntervalSince(Date())

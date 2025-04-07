@@ -73,12 +73,12 @@ private struct IntervalsView: View {
             }
             .help(NSLocalizedString("IntervalsView.longRestIntervalLength.help",
                                     comment: "Long rest interval hint"))
-            Stepper(value: $timer.currentPresetInstance.workIntervalsInSet, in: 1 ... 10) {
+            Stepper(value: $timer.currentPresetInstance.workIntervalsInSet, in: 1 ... 999) {
                 HStack {
                     Text(NSLocalizedString("IntervalsView.workIntervalsInSet.label",
                                            comment: "Work intervals in a set label"))
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    TextField("", value: $timer.currentPresetInstance.workIntervalsInSet, formatter: ClampedNumberFormatter(min: 1, max: 10))
+                    TextField("", value: $timer.currentPresetInstance.workIntervalsInSet, formatter: ClampedNumberFormatter(min: 1, max: 999))
                         .frame(width: 36, alignment: .trailing)
                         .multilineTextAlignment(.trailing)
                         .focused($focusedField, equals: .workIntervalsInSet)
@@ -102,6 +102,10 @@ private struct IntervalsView: View {
                 .labelsHidden()
                 .frame(maxWidth: 200)
                 .pickerStyle(.segmented)
+                .onChange(of: timer.currentPreset) { newValue in
+                    timer.currentPresetInstance = timer.presets[newValue] // Update preset
+                    timer.startStop() // Stop timer
+                }
             }
             Spacer().frame(minHeight: 0)
         }
@@ -291,7 +295,7 @@ struct TBPopoverView: View {
     @ObservedObject var timer = TBTimer()
     @State private var buttonHovered = false
     @State private var activeChildView = ChildView.intervals
-
+    @State private var showConfirmation = false // State variable to manage dialog visibility
     private func GetLocalizedWidth() -> CGFloat {
         let widthString = NSLocalizedString("TBPopoverView.width", comment: "Width for the view")
         return CGFloat(Double(widthString) ?? 255)
@@ -299,8 +303,9 @@ struct TBPopoverView: View {
 
     private func TimerDisplayString() -> String {
         var result = timer.timeLeftString
+        result += " | " + timer.elapsedTimeString
         if timer.currentPresetInstance.workIntervalsInSet > 1, timer.stopAfter == .disabled || timer.stopAfter == .longRest {
-            result += " (" + String(timer.currentWorkInterval) + "/" + String(timer.currentPresetInstance.workIntervalsInSet) + ")"
+            result += " | (" + String(timer.currentWorkInterval) + "/" + String(timer.currentPresetInstance.workIntervalsInSet) + ")"
         }
         return result
     }
@@ -320,8 +325,11 @@ struct TBPopoverView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .center, spacing: 4) {
                 Button {
-                    timer.startStop()
-                    TBStatusItem.shared.closePopover(nil)
+                    if timer.timer != nil {// Check if the timer is running (indicates stopping action)
+                        showConfirmation = true // Show confirmation dialog
+                    } else {
+                        timer.startStop() // Directly start the timer
+                    }
                 } label: {
                     Text(timer.timer != nil ?
                          (buttonHovered ? stopLabel : TimerDisplayString()) :
@@ -340,22 +348,36 @@ struct TBPopoverView: View {
                 }
                 .controlSize(.large)
                 .keyboardShortcut(.defaultAction)
+                .confirmationDialog(
+                    "Are you sure you want to stop the timer?",
+                    isPresented: $showConfirmation,
+                    titleVisibility: .visible
+                ) {
+                    Button("OK") {
+                        timer.startStop() // Stop the timer if OK is clicked
+                        TBStatusItem.shared.closePopover(nil)
+                    }
+                    Button("Cancel", role: .cancel) { }
+                }
                 
-                if timer.timer != nil {
+            }
+            if timer.timer != nil {
+                HStack {
                     Group {
                         Button {
                             timer.addMinute()
                         } label: {
                             Text(plusIcon)
+                                .frame(maxWidth: .infinity)
                         }
                         .controlSize(.large)
                         .help(addMinuteLabel)
-
                         Button {
                             timer.pauseResume()
                             TBStatusItem.shared.closePopover(nil)
                         } label: {
                             Text(timer.paused ? resumeIcon : pauseIcon)
+                                .frame(maxWidth: .infinity)
                         }
                         .controlSize(.large)
                         .help(timer.paused ? resumeLabel : pauseLabel)
@@ -365,6 +387,7 @@ struct TBPopoverView: View {
                             TBStatusItem.shared.closePopover(nil)
                         } label: {
                             Text(skipIcon)
+                                .frame(maxWidth: .infinity)
                         }
                         .controlSize(.large)
                         .help(skipLabel)
@@ -372,7 +395,6 @@ struct TBPopoverView: View {
                     .disabled(timer.timer == nil)
                 }
             }
-            
             Picker("", selection: $activeChildView) {
                 Text(NSLocalizedString("TBPopoverView.intervals.label",
                                        comment: "Intervals label")).tag(ChildView.intervals)
